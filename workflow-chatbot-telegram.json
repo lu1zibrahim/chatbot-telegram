@@ -1,0 +1,304 @@
+{
+  "name": "challenge2LuizWeatherCityBot",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "0815cabc-9123-4883-bd7b-bd298e3ba27d",
+      "name": "Telegram Trigger",
+      "webhookId": "0ecabaf6-ea8c-47ed-9f3d-9043064be340",
+      "credentials": {
+        "telegramApi": {
+          "id": "MlRqtB8ycEg1B1O7",
+          "name": "Desafio2RocketSeat"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "cee1c503-7a59-45fa-9f47-82afe549ee66",
+              "name": "queue",
+              "value": "={{ $('Telegram Trigger').item.json.message.text }} ",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        208,
+        0
+      ],
+      "id": "2a132ed3-853d-4a1e-a526-20f6d905ddf1",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get the user's message\nconst userInput = $input.item.json.queue;\n\n// Remove accents\nlet normalized = userInput\n  .normalize('NFD')\n  .replace(/[\\u0300-\\u036f]/g, '')\n  .trim();\n\n// Handle Brazilian format: \"City,SP\" → \"City,BR\"\n// Replace state codes with country code\nif (normalized.includes(',')) {\n  const parts = normalized.split(',');\n  const city = parts[0].trim();\n  // Add BR (Brazil country code) for better results\n  normalized = `${city},BR`;\n}\n\n// Return cleaned data\nreturn {\n  json: {\n    queue: normalized\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        0
+      ],
+      "id": "0dceda11-b4b1-4849-8852-5517feb5b9d6",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "url": "https://api.openweathermap.org/data/2.5/weather",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "={{ $json.queue }}"
+            },
+            {
+              "name": "units",
+              "value": "metric"
+            },
+            {
+              "name": "lang",
+              "value": "pt_br"
+            },
+            {
+              "name": "appid",
+              "value": "{{ $env.OPENWEATHER_API_KEY }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        624,
+        0
+      ],
+      "id": "760f33e2-1ecc-48b1-8fd9-9fa6ca8ac7a5",
+      "name": "HTTP Request",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "19c0c56a-fccd-414e-9559-a31b295f66a4",
+              "leftValue": "={{ String($json.cod) }}",
+              "rightValue": "200",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        832,
+        0
+      ],
+      "id": "87622a0f-52c7-4520-84c2-a54fb5e593b7",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "896ec567-e7ff-4593-84c6-78cb25728553",
+              "name": "message",
+              "value": "=🌤️ A temperatura em {{ $('HTTP Request').item.json.name }} é de {{ Math.round($('HTTP Request').item.json.main.temp) }}°C.",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1040,
+        -96
+      ],
+      "id": "3c8820c7-0c30-4107-8023-03aa91624f1a",
+      "name": "Edit Fields1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "36849f8a-9255-4ac9-8190-762d7be79e0b",
+              "name": "message",
+              "value": "❌ Cidade não encontrada. Use o formato Cidade,UF (ex.: São Paulo,SP).",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1040,
+        96
+      ],
+      "id": "d0ad9a97-9b6d-4952-b7b6-7a18fd4aa88a",
+      "name": "Edit Fields2"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "={{ $json.message }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1360,
+        16
+      ],
+      "id": "208e69fb-2b40-441a-9ca8-fb1b14cecd05",
+      "name": "Send a text message",
+      "webhookId": "e0d2b1d4-5b7f-4e15-84c6-90bfabd219f9",
+      "credentials": {
+        "telegramApi": {
+          "id": "MlRqtB8ycEg1B1O7",
+          "name": "Desafio2RocketSeat"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Edit Fields2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields2": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner",
+    "executionTimeout": 3600
+  },
+  "versionId": "620f9596-dede-42e8-a44c-07841d0d0b59",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "682e65e0d28a44cfc426d5becd7bc3d66a44a9c6d5d13cb9d8fee7da3127fe30"
+  },
+  "id": "1Ghe-O71jkaCyTA2sPwZu",
+  "tags": []
+}
